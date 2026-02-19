@@ -1,8 +1,13 @@
 import socket
 import json
 
-# Lista de servidores reales (SrvA, SrvC, etc.)
-servers = ["192.168.50.10"]  # agrega más IP si quieres
+# Lista de servidores reales
+servers = [
+    "192.168.50.10",   # SrvA
+    "192.168.50.12"    # SrvA2
+]
+
+current_server = 0  # Para round-robin
 
 LISTEN_HOST = '0.0.0.0'
 LISTEN_PORT = 6000
