@@ -1,75 +1,64 @@
 import socket
+import ssl
+import json
 import psutil
 import subprocess
-import json
+import hashlib
 
-HOST = "0.0.0.0"
+# --- CONFIGURACIÓN DE RED (Desafío 2 resuelto) ---
+HOST = '192.168.10.10'
 PORT = 5000
 
-# 🔥 guardamos procesos lanzados
-procesos = {}
+# Base de datos simulada de usuarios (Contraseña real: "admin123")
+USUARIOS_VALIDOS = {
+    "admin": hashlib.sha256("admin123".encode()).hexdigest()
+}
 
-def handle_command(cmd):
-
-    # ---------- MONITOR ----------
-    if cmd == "monitor":
+def ejecutar_comando(comando):
+    if comando == 'monitor':
         return {
-            "cpu": psutil.cpu_percent(interval=1),
-            "ram": psutil.virtual_memory().percent,
-            "procesos_activos": len(procesos)
+            "cpu_percent": psutil.cpu_percent(interval=1),
+            "ram_percent": psutil.virtual_memory().percent
         }
-
-    # ---------- LIST ----------
-    elif cmd == "list":
-        salida = []
-        for pid, proc in procesos.items():
-            if proc.poll() is None:  # sigue vivo
-                salida.append({
-                    "pid": pid,
-                    "cmd": " ".join(proc.args)
-                })
-        return salida
-
-    # ---------- RUN ----------
-    elif cmd.startswith("run "):
-        program = cmd[4:]
-        try:
-            proc = subprocess.Popen(program.split())
-            procesos[proc.pid] = proc
-            return {
-                "status": f"Ejecutado {program}",
-                "pid": proc.pid
-            }
-        except Exception as e:
-            return {"error": str(e)}
-
-    # ---------- STOP ----------
-    elif cmd.startswith("stop "):
-        try:
-            pid = int(cmd[5:])
-            if pid in procesos:
-                procesos[pid].terminate()
-                return {"status": f"Proceso {pid} terminado"}
-            else:
-                return {"error": "PID no encontrado"}
-        except Exception as e:
-            return {"error": str(e)}
-
+    elif comando == 'list':
+        procesos = []
+        for p in psutil.process_iter(['pid', 'name']):
+            procesos.append(p.info)
+            if len(procesos) >= 15: # Limitamos a 15 para no saturar la pantalla
+                break
+        return {"procesos": procesos}
     else:
-        return {"error": "Comando desconocido"}
+        return {"error": "Comando no reconocido"}
 
+def iniciar_servidor():
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-    s.bind((HOST, PORT))
-    s.listen()
-    print(f"Servidor escuchando en puerto {PORT}")
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((HOST, PORT))
+        sock.listen(5)
+        print(f"[*] Servidor escuchando de forma SEGURA (TLS/SSL) en {HOST}:{PORT}")
 
-    while True:
-        conn, addr = s.accept()
-        with conn:
-            try:
-                data = conn.recv(1024).decode().strip()
-                response = handle_command(data)
-                conn.send(json.dumps(response).encode())
-            except Exception as e:
-                conn.send(json.dumps({"error": str(e)}).encode())
+        with context.wrap_socket(sock, server_side=True) as ssock:
+            conn, addr = ssock.accept()
+            print(f"[+] Conexión segura establecida con {addr}")
+            
+            # Fase de Autenticación
+            credenciales = json.loads(conn.recv(1024).decode())
+            if USUARIOS_VALIDOS.get(credenciales['user']) == credenciales['hash']:
+                conn.send(b"AUTH_OK")
+                print("[!] Autenticación exitosa.")
+                
+                # Bucle de comandos
+                while True:
+                    data = conn.recv(1024).decode()
+                    if not data or data == 'exit':
+                        break
+                    respuesta = ejecutar_comando(data)
+                    conn.send(json.dumps(respuesta).encode())
+            else:
+                conn.send(b"AUTH_FAIL")
+                print("[-] Intento de acceso denegado.")
+
+if __name__ == "__main__":
+    iniciar_servidor()
