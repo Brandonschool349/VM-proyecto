@@ -6,7 +6,7 @@ import subprocess
 import hashlib
 
 # --- CONFIGURACIÓN DE RED (Desafío 2 resuelto) ---
-HOST = '192.168.10.10'
+HOST = '192.168.10.10' #HOST del Servidor Real (SrvA) variable para facilitar cambios futuros
 PORT = 5000
 
 # Base de datos simulada de usuarios (Contraseña real: "admin123")
