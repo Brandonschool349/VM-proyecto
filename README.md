@@ -10,7 +10,7 @@ El sistema abandona las conexiones vulnerables en texto plano, implementando tú
 2. **Middleware (SrvB):** Actúa como un túnel blindado. Recibe las peticiones del cliente y las reenvía al servidor de forma segura, distribuyendo la carga de red.
 3. **Cliente:** Interfaz interactiva que solicita credenciales, cifra la contraseña antes de enviarla y formatea la respuesta del servidor.
 
----
+
 
 ## ⚙️ Requisitos Previos
 
