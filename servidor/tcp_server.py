@@ -7,7 +7,7 @@ import hashlib
 import datetime
 import os
 
-HOST = '192.168.10.11'
+HOST = '192.168.10.10' # IP del Servidor Real (SrvA) variable para facilitar cambios futuros
 PORT = 5000
 
 USUARIOS_VALIDOS = {
