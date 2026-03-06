@@ -1,74 +1,314 @@
-# 🛡️ Sistema Distribuido Seguro (TLS/SSL) - Administración de SO
+🛡️ Sistema Distribuido Seguro (TLS/SSL) para Administración de Sistemas Operativos
 
-Este proyecto implementa una arquitectura distribuida de tres nodos (Cliente, Middleware/Proxy y Servidor Gestor) diseñada para la administración remota y segura de sistemas operativos basados en Linux. 
+Este proyecto implementa un sistema distribuido seguro diseñado para la administración remota de sistemas operativos Linux mediante una arquitectura de tres nodos independientes: Cliente, Middleware/Proxy y Servidor Gestor.
 
-El sistema abandona las conexiones vulnerables en texto plano, implementando túneles criptográficos (TLS 1.3), autenticación basada en Hash (SHA-256) y monitoreo de recursos de hardware en tiempo real.
+El sistema elimina las comunicaciones en texto plano y utiliza cifrado TLS 1.3, autenticación de usuarios basada en hash SHA-256, y un sistema de monitoreo de recursos en tiempo real.
 
-## 🏗️ Arquitectura del Proyecto
+El objetivo es demostrar conceptos clave de sistemas operativos distribuidos, seguridad en redes y administración remota de procesos.
 
-1. **Servidor Gestor (SrvA):** Ejecuta comandos a nivel del sistema operativo (listar procesos, monitorear CPU/RAM) y retorna los resultados en formato JSON.
-2. **Middleware (SrvB):** Actúa como un túnel blindado. Recibe las peticiones del cliente y las reenvía al servidor de forma segura, distribuyendo la carga de red.
-3. **Cliente:** Interfaz interactiva que solicita credenciales, cifra la contraseña antes de enviarla y formatea la respuesta del servidor.
+Proyecto desarrollado para la materia de Sistemas Operativos.
 
+🏗️ Arquitectura del Sistema
 
+El sistema se compone de tres componentes principales desplegados en máquinas virtuales independientes, simulando un entorno de infraestructura distribuida.
 
-## ⚙️ Requisitos Previos
+Servidor Gestor (SrvA)
 
-Para ejecutar este proyecto en un entorno virtualizado (ej. Ubuntu Server), necesitas instalar las siguientes dependencias:
+El servidor gestor es el nodo encargado de interactuar directamente con el sistema operativo.
 
-### 1. Dependencias del Sistema (Linux)
-Asegúrate de tener instalado Python 3 y OpenSSL:
+Funciones principales:
+
+Ejecutar comandos del sistema
+
+Obtener información del kernel
+
+Administrar procesos
+
+Generar respuestas en formato JSON
+
+El servidor utiliza la librería psutil para acceder a métricas del sistema como:
+
+uso de CPU
+
+uso de memoria
+
+lista de procesos activos
+
+Todas las comunicaciones entrantes se realizan mediante TLS cifrado.
+
+Middleware / Proxy Seguro (SrvB)
+
+El middleware actúa como una capa intermedia de seguridad y distribución de tráfico.
+
+Funciones principales:
+
+Recibir solicitudes del cliente
+
+Validar la comunicación segura
+
+Reenviar peticiones al servidor gestor
+
+Retornar la respuesta al cliente
+
+Este componente permite:
+
+desacoplar el cliente del servidor
+
+mejorar la seguridad
+
+facilitar la escalabilidad
+
+controlar el flujo de comunicaciones
+
+El middleware también permite simular arquitecturas utilizadas en infraestructura cloud y microservicios.
+
+Cliente
+
+El cliente es la interfaz que permite al usuario interactuar con el sistema distribuido.
+
+Funciones principales:
+
+autenticación de usuarios
+
+envío de comandos remotos
+
+recepción de resultados
+
+formateo de respuestas del servidor
+
+La contraseña del usuario no se envía en texto plano.
+Antes de transmitirse, se aplica un hash SHA-256 para proteger las credenciales.
+
+🔐 Seguridad Implementada
+
+El sistema incluye múltiples capas de seguridad.
+
+Cifrado de Comunicación
+
+Se implementa TLS/SSL utilizando OpenSSL y la librería ssl de Python, garantizando:
+
+confidencialidad de los datos
+
+integridad de la comunicación
+
+protección contra ataques de sniffing
+
+Las conexiones cliente-servidor utilizan certificados X.509.
+
+Autenticación de Usuarios
+
+El sistema implementa autenticación mediante:
+
+verificación de usuario
+
+comparación de contraseñas con hash SHA-256
+
+Esto evita almacenar o transmitir contraseñas en texto plano.
+
+Protección del Entorno
+
+El sistema fue desplegado en máquinas virtuales Linux, utilizando herramientas comunes de seguridad en entornos Red Hat/Linux como:
+
+control de usuarios del sistema
+
+reglas de red
+
+firewall del sistema (Firewalld)
+
+Esto simula prácticas utilizadas en entornos reales de infraestructura cloud.
+
+🖥️ Entorno de Despliegue
+
+El sistema fue probado en máquinas virtuales Linux para simular un entorno distribuido.
+
+Configuración utilizada:
+
+3 máquinas virtuales
+
+sistema operativo Linux
+
+comunicación mediante red interna
+
+Esta arquitectura permite simular el despliegue de aplicaciones en infraestructuras cloud o centros de datos distribuidos.
+
+⚙️ Requisitos Previos
+
+Para ejecutar el sistema se requiere instalar las siguientes dependencias.
+
+Dependencias del Sistema
+
+Instalar Python y OpenSSL:
 
 sudo apt update
 sudo apt install python3 python3-pip openssl -y
----------------------------
+Librerías de Python
 
-2. Librerías de Python
-El proyecto requiere módulos específicos para el monitoreo del sistema operativo y la generación de reportes visuales:
+El sistema utiliza librerías para monitoreo y visualización de datos:
 
--------------------------------
-"pip3 install psutil matplotlib"
+pip3 install psutil matplotlib
 
-(Nota: En versiones recientes de Ubuntu, puede que necesites usar el flag --user o instalar vía sudo apt install python3-psutil python3-matplotlib).
+En algunas distribuciones Linux también se puede instalar con:
 
-Generación de Llaves y Certificados (IMPORTANTE)
-El sistema utiliza cifrado asimétrico para asegurar la comunicación. El código no funcionará si no generas los certificados X.509 en el directorio de ejecución.
+sudo apt install python3-psutil python3-matplotlib
+🔑 Generación de Certificados TLS
 
-Ejecuta el siguiente comando en la terminal (dentro de la carpeta donde están tus scripts de Python) para generar una llave privada RSA de 4096 bits y un certificado autofirmado válido por 365 días:
+Para habilitar la comunicación segura es necesario generar certificados X.509.
 
-"openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes"
+Ejecutar el siguiente comando dentro del directorio del proyecto:
 
-Durante la generación, el sistema te pedirá algunos datos (País, Estado, Organización). Puedes presionar Enter para dejar los valores por defecto.
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
 
-⚠️ Advertencia de Seguridad: Los archivos cert.pem y key.pem generados NO deben ser subidos a repositorios públicos. Asegúrate de incluirlos en tu archivo .gitignore.
+Esto generará:
 
+key.pem → clave privada
+
+cert.pem → certificado público
+
+Durante el proceso se solicitarán datos como país u organización.
+Se pueden dejar los valores por defecto.
+
+⚠️ Importante:
+
+Los archivos cert.pem y key.pem no deben subirse a repositorios públicos.
+
+Se recomienda agregarlos al archivo:
+
+.gitignore
 🚀 Instrucciones de Ejecución
-El orden de ejecución de los nodos es estricto para evitar errores de conexión (ConnectionRefusedError). Se deben abrir tres terminales distintas (o ejecutar en máquinas separadas cambiando las variables HOST en el código):
 
-1. Iniciar el Servidor Gestor:
+El sistema debe iniciarse en el siguiente orden.
 
-"python3 tcp_server.py"
-"(Deberá mostrar: "Servidor escuchando de forma SEGURA...")"
+Se recomienda usar tres terminales distintas o tres máquinas virtuales.
 
-2. Iniciar el Middleware / Proxy:
+1. Iniciar el Servidor Gestor
+python3 tcp_server.py
 
-"python3 middleware.py"
-(Deberá mostrar: "Middleware BLINDADO escuchando...")
+Mensaje esperado:
 
+Servidor escuchando de forma SEGURA...
+2. Iniciar el Middleware
+python3 middleware.py
 
-3. Iniciar el Cliente:
+Mensaje esperado:
 
-"python3 cliente.py"
+Middleware seguro escuchando conexiones...
+3. Iniciar el Cliente
+python3 cliente.py
 
-Al iniciar el cliente, el sistema solicitará autenticación. Utiliza las credenciales configuradas en la base de datos simulada del servidor (ej. Usuario: admin, Password: admin123).
+El sistema solicitará autenticación.
 
+Credenciales de ejemplo:
+
+Usuario:
+
+admin
+
+Contraseña:
+
+admin123
 📊 Comandos Soportados
-Una vez autenticado, el cliente soporta los siguientes comandos remotos:
 
-list: Retorna un objeto JSON con el PID y Nombre de los procesos activos en el núcleo del sistema (ej. systemd).
+Una vez autenticado, el usuario puede ejecutar comandos remotos.
 
-monitor: Retorna el porcentaje exacto de consumo de CPU y Memoria RAM en tiempo real.
+list
 
-exit: Cierra el túnel de forma segura.
+Obtiene la lista de procesos activos en el sistema.
 
-Desarrollado para la materia de Sistemas Operativos.
+Salida:
+
+PID
+
+nombre del proceso
+
+monitor
+
+Muestra métricas del sistema en tiempo real.
+
+Incluye:
+
+uso de CPU
+
+uso de memoria RAM
+
+exit
+
+Cierra la conexión segura con el servidor.
+
+🖥️ Interfaz Gráfica (GUI)
+
+El sistema incluye una interfaz gráfica desarrollada con Tkinter para facilitar la administración del sistema distribuido.
+
+Funciones principales de la interfaz:
+
+visualizar procesos activos
+
+iniciar procesos remotos
+
+detener procesos
+
+monitorear CPU y RAM
+
+visualizar registros del sistema
+
+La interfaz se comunica con el middleware utilizando el mismo protocolo TCP utilizado por el cliente de consola.
+
+Debido a limitaciones del entorno gráfico de las máquinas virtuales, la validación visual completa de la interfaz se encuentra en proceso. Sin embargo, la lógica de comunicación y los comandos remotos han sido probados correctamente.
+
+🧪 Pruebas Realizadas
+
+Se realizaron diferentes tipos de pruebas para validar el funcionamiento del sistema.
+
+Tipo de prueba	Resultado
+Conexión TLS	Exitosa
+Autenticación de usuarios	Exitosa
+Ejecución de comandos remotos	Exitosa
+Monitoreo de CPU y RAM	Correcto
+Comunicación cliente-servidor	Estable
+
+Estas pruebas confirman que el sistema funciona correctamente dentro de un entorno distribuido seguro.
+
+📈 Mejoras y Optimización
+
+Durante el desarrollo se realizaron mejoras para optimizar el sistema:
+
+uso de psutil para monitoreo eficiente del sistema
+
+uso de JSON para estructurar respuestas del servidor
+
+separación de responsabilidades entre nodos
+
+uso de middleware para mejorar la escalabilidad
+
+📚 Tecnologías Utilizadas
+
+Python 3
+
+OpenSSL
+
+TLS / SSL
+
+psutil
+
+matplotlib
+
+Tkinter
+
+Linux / Ubuntu Server
+
+Máquinas Virtuales
+
+👨‍💻 Autor
+
+Proyecto desarrollado para la materia de Sistemas Operativos.
+
+Implementa conceptos de:
+
+sistemas distribuidos
+
+seguridad en redes
+
+administración de procesos
+
+virtualización
+
+monitoreo de recursos del sistema
