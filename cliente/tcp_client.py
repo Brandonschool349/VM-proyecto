@@ -1,56 +1,77 @@
-import socket
-import ssl
-import json
-import hashlib
+import socket, ssl, json, psutil, subprocess, hashlib, datetime, os
 
-MID_HOST = '192.168.10.20'
-MID_PORT = 6000
+HOST = '192.168.10.10' 
+PORT = 5000
 
-def iniciar_cliente():
-    context = ssl.create_default_context()
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
+USUARIOS_VALIDOS = {"admin": hashlib.sha256("admin123".encode()).hexdigest()}
+procesos = {}
 
+# CORRECCIÓN: Carpeta local para evitar PermissionError
+LOG_DIR = "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, "server_audit.log")
+
+def log_event(event):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a") as f: f.write(f"[{timestamp}] {event}\n")
+
+def list_logs():
+    try:
+        with open(LOG_FILE, "r") as f: return f.readlines()[-50:]
+    except Exception as e: return [f"Error leyendo logs: {e}"]
+
+def ejecutar_comando(cmd, client_addr):
+    log_event(f"Comando recibido de {client_addr}: {cmd}")
+    if cmd == "monitor":
+        return {"cpu": psutil.cpu_percent(interval=1), "ram": psutil.virtual_memory().percent, "procesos_activos": len(procesos)}
+    elif cmd == "list":
+        salida = []
+        for pid, proc in list(procesos.items()):
+            if proc.poll() is None: salida.append({"pid": pid, "cmd": " ".join(proc.args)})
+            else: del procesos[pid]
+        return salida
+    elif cmd.startswith("run "):
+        program = cmd[4:]
+        try:
+            proc = subprocess.Popen(program.split())
+            procesos[proc.pid] = proc
+            return {"status": f"Ejecutado {program}", "pid": proc.pid}
+        except Exception as e: return {"error": str(e)}
+    elif cmd.startswith("stop "):
+        try:
+            pid = int(cmd[5:])
+            if pid in procesos:
+                procesos[pid].terminate()
+                del procesos[pid]
+                return {"status": f"Proceso {pid} terminado"}
+            else: return {"error": "PID no encontrado"}
+        except Exception as e: return {"error": str(e)}
+    elif cmd == "list_logs": return list_logs()
+    else: return {"error": "Comando desconocido"}
+
+def iniciar_servidor():
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(certfile="cert.pem", keyfile="key.pem")
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        with context.wrap_socket(sock, server_hostname=MID_HOST) as ssock:
-            ssock.connect((MID_HOST, MID_PORT))
-
-            print("=== SISTEMA DE GESTI ^sN DISTRIBUIDA ===")
-            usuario = input("Usuario: ")
-            password = input("Contrase  a: ")
-
-            # Cifrado SHA-256 antes de enviar
-            hash_pass = hashlib.sha256(password.encode()).hexdigest()
-            credenciales = {"user": usuario, "hash": hash_pass}
-            ssock.send(json.dumps(credenciales).encode())
-
-            respuesta_auth = ssock.recv(1024).decode()
-
-            if respuesta_auth == "AUTH_OK":
-                print("\n[+] Acceso Concedido. Conexi  n Cifrada.")
-                while True:
-                    print("\n--- MEN ^z ---")
-                    print("1. list (Ver procesos)")
-                    print("2. monitor (Ver CPU/RAM)")
-                    print("3. exit (Salir)")
-                    cmd = input("Comando> ")
-
-                    if cmd == 'exit' or cmd == '3':
-                        ssock.send(b'exit')
-                        break
-                    elif cmd in ['list', '1']:
-                        ssock.send(b'list')
-                    elif cmd in ['monitor', '2']:
-                        ssock.send(b'monitor')
+        sock.bind((HOST, PORT))
+        sock.listen(5)
+        print(f"[*] Servidor TLS escuchando en {HOST}:{PORT}")
+        with context.wrap_socket(sock, server_side=True) as ssock:
+            while True:
+                conn, addr = ssock.accept()
+                try:
+                    credenciales = json.loads(conn.recv(1024).decode())
+                    if USUARIOS_VALIDOS.get(credenciales.get('user')) == credenciales.get('hash'):
+                        conn.send(b"AUTH_OK")
+                        while True:
+                            data = conn.recv(1024).decode()
+                            if not data or data == "exit": break
+                            conn.send(json.dumps(ejecutar_comando(data, addr)).encode())
                     else:
-                        print("Comando inv  lido.")
-                        continue
+                        conn.send(b"AUTH_FAIL")
+                        # CORRECCIÓN: La línea que estaba cortada ya está bien
+                        log_event(f"Autenticación fallida de {credenciales.get('user')}")
+                except Exception as e: log_event(f"Error: {e}")
+                finally: conn.close()
 
-                    resultado = ssock.recv(4096).decode()
-                    # Formatear el JSON para que se vea bonito
-                    print(json.dumps(json.loads(resultado), indent=4))
-            else:
-                print("\n[-] Acceso Denegado. Credenciales incorrectas.")
-
-if __name__ == "__main__":
-    iniciar_cliente()
+if __name__ == "__main__": iniciar_servidor()
